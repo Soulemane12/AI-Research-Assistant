@@ -103,7 +103,7 @@ The project was built for a hackathon challenge that focused on using Cortex Sea
 
 ## Project Structure
 
-```plaintext
+
 ├── app.py                   # Main Streamlit application
 ├── utils
 │   ├── pdf_extraction.py    # Functions for extracting text from PDFs
