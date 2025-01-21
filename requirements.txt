@@ -1,0 +1,12 @@
+# requirements.txt
+
+streamlit
+PyMuPDF
+julep
+sentence-transformers
+snowflake-connector-python
+pandas
+mistralai
+trulens_eval
+python-dotenv
+tqdm
