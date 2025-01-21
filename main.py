@@ -8,53 +8,42 @@ from utils.process import (
     embed_text,
     upload_data_to_snowflake,
 )
-from trulens.core import TruSession
-from trulens.providers import huggingface
 import os
 import json
 from dotenv import load_dotenv
-import uuid
+import uuid  # To generate unique IDs for uploaded papers
 import warnings
 import logging
 
 # ============================
 # 1. Setup Logging
 # ============================
+
+# Configure logging
 logging.basicConfig(
-    filename='app.log', 
-    filemode='a',
+    filename='app.log',  # Log file name
+    filemode='a',         # Append mode
     format='%(asctime)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+    level=logging.INFO    # Log level
 )
 
 # ============================
 # 2. Suppress PyTorch Warnings
 # ============================
+
+# Suppress the PyTorch torch.classes warning if it's non-critical
 warnings.filterwarnings("ignore", message=".*torch.classes.*")
 
 # ============================
 # 3. Load Environment Variables
 # ============================
+
 load_dotenv()
 
 # ============================
-# 4. Initialize TruLens
+# 4. Streamlit Page Configuration
 # ============================
-session = TruSession()
 
-# Initialize Huggingface provider
-hf_provider = huggingface.Huggingface(model_name="sentence-transformers/all-MiniLM-L6-v2")
-
-# Define a custom relevance feedback function
-def compute_relevance_feedback(embedding1, embedding2):
-    """Compute cosine similarity as relevance feedback."""
-    from numpy import dot
-    from numpy.linalg import norm
-    return dot(embedding1, embedding2) / (norm(embedding1) * norm(embedding2))
-
-# ============================
-# 5. Streamlit Page Configuration
-# ============================
 st.set_page_config(
     page_title="AI-Powered Research Assistant",
     layout="wide",
@@ -62,19 +51,22 @@ st.set_page_config(
 )
 
 # ============================
-# 6. Application Title
+# 5. Application Title
 # ============================
+
 st.title("AI-Powered Research Assistant")
 
 # ============================
-# 7. Sidebar for Navigation
+# 6. Sidebar for Navigation
 # ============================
+
 st.sidebar.title("Navigation")
 app_mode = st.sidebar.selectbox("Choose the workflow:", ["Upload a Research Paper", "Search for Relevant Papers"])
 
 # ============================
-# 8. Upload a Research Paper Workflow
+# 7. Upload a Research Paper Workflow
 # ============================
+
 if app_mode == "Upload a Research Paper":
     st.header("Upload and Analyze a Research Paper")
 
@@ -100,11 +92,11 @@ if app_mode == "Upload a Research Paper":
                     text = extract_text_from_pdf(uploaded_file)
                 else:
                     text = uploaded_file.getvalue().decode('utf-8')
-
+                
                 if text:
                     logging.info(f"Text extracted successfully from {uploaded_file.name}.")
                     # Generate summaries and insights
-                    summary = generate_summary(text)
+                    summary = generate_summary(text)  # Now uses Mistral
                     julep_result = process_with_julep(text)
 
                     if isinstance(julep_result, dict) and 'error' not in julep_result:
@@ -125,22 +117,6 @@ if app_mode == "Upload a Research Paper":
                         }
                         processed_papers.append(paper_data)
 
-                        # Evaluate relevance feedback using a custom function
-                        relevance_score = compute_relevance_feedback(embedding, embedding)
-                        logging.info(f"Relevance score calculated: {relevance_score}")
-
-                        # Log feedback manually or use another system
-                        feedback_log = {
-                            "app_id": "ResearchUpload",
-                            "inputs": {"text": text},
-                            "outputs": {"summary": summary, "relevance_score": relevance_score},
-                        }
-                        logging.info(f"Feedback logged: {feedback_log}")
-
-                        # Display feedback results in Streamlit interface
-                        st.subheader(f"Feedback for {uploaded_file.name}")
-                        st.write(f"Relevance Score: {relevance_score:.4f}")
-
                         results.append(julep_result)
                         logging.info(f"File {uploaded_file.name} processed and ready for upload.")
                     else:
@@ -156,7 +132,7 @@ if app_mode == "Upload a Research Paper":
                         "error": "Failed to extract text."
                     })
                     logging.error(f"Failed to extract text from {uploaded_file.name}.")
-
+            
             # Upload processed papers to Snowflake
             if processed_papers:
                 try:
@@ -189,17 +165,18 @@ if app_mode == "Upload a Research Paper":
                     st.markdown(result.get('key_points', 'No key points found.'))
 
 # ============================
-# 9. Search for Relevant Papers Workflow
+# 8. Search for Relevant Papers Workflow
 # ============================
+
 elif app_mode == "Search for Relevant Papers":
     st.header("Search for Relevant Papers")
-
+    
     # Text input for the search query
     search_query = st.text_input(
         "Enter keywords, topics, or research questions", 
         help="Type keywords to find papers."
     )
-
+    
     # Button to trigger the search
     if st.button("Search"):
         if not search_query:
@@ -211,14 +188,14 @@ elif app_mode == "Search for Relevant Papers":
             try:
                 # Generate embedding for the search query
                 query_embedding = embed_text(search_query)
-
+                
                 if not query_embedding:
                     st.error("Failed to generate embedding for the query.")
                     logging.error("Embedding generation failed for the search query.")
                 else:
                     # Search papers using the embedding
                     search_results = search_papers_with_cortex(query_embedding)
-
+                    
                     if not search_results:
                         st.warning("No relevant papers found.")
                         logging.info("No relevant papers found for the query.")
